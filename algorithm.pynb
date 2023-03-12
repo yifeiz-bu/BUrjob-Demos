@@ -1,0 +1,63 @@
+# import necessary libraries
+import pandas as pd
+from sklearn.preprocessing import LabelEncoder, OneHotEncoder, StandardScaler
+from sklearn.model_selection import train_test_split, cross_val_score
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.metrics import accuracy_score
+
+# load alumni data
+alumni_data = pd.read_csv('alumni_data.csv')
+
+# preprocess data
+categorical_cols = ['major', 'job_position']
+numerical_cols = ['extracurricular_activities', 'course_project', 'gpa', 'evaluation']
+target_col = 'job_position'
+
+# encode categorical columns
+label_encoder = LabelEncoder()
+for col in categorical_cols:
+    alumni_data[col] = label_encoder.fit_transform(alumni_data[col])
+
+onehot_encoder = OneHotEncoder(sparse=False)
+encoded_data = onehot_encoder.fit_transform(alumni_data[categorical_cols])
+encoded_df = pd.DataFrame(encoded_data, columns=onehot_encoder.get_feature_names(categorical_cols))
+
+# combine categorical and numerical data
+preprocessed_data = pd.concat([alumni_data[numerical_cols], encoded_df], axis=1)
+
+# normalize data
+scaler = StandardScaler()
+preprocessed_data[numerical_cols] = scaler.fit_transform(preprocessed_data[numerical_cols])
+
+# split data into training and testing sets
+X_train, X_test, y_train, y_test = train_test_split(preprocessed_data, alumni_data[target_col], test_size=0.2)
+
+# train decision tree classifier model
+model = DecisionTreeClassifier()
+scores = cross_val_score(model, X_train, y_train, cv=5)
+print("Cross-validation accuracy: %0.2f (+/- %0.2f)" % (scores.mean(), scores.std() * 2))
+
+model.fit(X_train, y_train)
+
+# make predictions on test data
+y_pred = model.predict(X_test)
+accuracy = accuracy_score(y_test, y_pred)
+print("Test accuracy:", accuracy)
+
+# predict job opportunities for graduating student
+graduating_student_data = pd.DataFrame({
+    'extracurricular_activities': [3],
+    'course_project': [90],
+    'gpa': [3.7],
+    'evaluation': [4.2],
+    'major_Biology': [0],
+    'major_Computer Science': [1],
+    'major_Economics': [0],
+    'major_Engineering': [0],
+    'major_Mathematics': [0],
+    'major_Physics': [0]
+})
+
+graduating_student_data[numerical_cols] = scaler.transform(graduating_student_data[numerical_cols])
+prediction = model.predict(graduating_student_data)
+print("Predicted job position:", prediction[0])
